@@ -29,34 +29,51 @@ jobs:
           echo "CPU information:"
           sysctl -n machdep.cpu.brand_string
       
-      - name: Download and install Geekbench 6
+      - name: Download and install Geekbench 6 CLI
         run: |
-          echo "Downloading Geekbench 6..."
+          echo "Downloading Geekbench 6 Command Line Tool..."
+          # Download the command line version instead of the GUI app
           curl -L https://cdn.geekbench.com/Geekbench-6.2.0-Mac.zip -o geekbench.zip
           unzip geekbench.zip
           
-          echo "Geekbench 6 files:"
-          ls -la "Geekbench 6.app/Contents/MacOS/"
-      
-      - name: Run Geekbench 6
+          # Look for command line tools in the package
+          echo "Searching for command line tools in the package..."
+          find . -name "geekbench*" -type f -perm +111
+          
+          # Check Resources directory for CLI tools
+          echo "Checking Resources directory..."
+          ls -la "Geekbench 6.app/Contents/Resources/" || echo "Resources directory not found"
+          
+      - name: Look for Geekbench CLI binary
         run: |
-          echo "Running Geekbench 6..."
+          echo "Looking for command line binaries..."
+          # Search more extensively
+          find "Geekbench 6.app" -type f -perm +111 | grep -v "\.framework"
+          
+          # Try to find files that might be CLI executables by name pattern
+          echo "Files containing 'bench' in the name:"
+          find "Geekbench 6.app" -name "*bench*" -type f
+          
+      - name: Try running various potential binaries
+        run: |
+          # Try different ways to run Geekbench
+          
+          echo "Attempt 1: Try running direct binary with run parameter"
           cd "Geekbench 6.app/Contents/MacOS/"
+          ./Geekbench\ 6 run || echo "Failed with exit code $?"
           
-          # List all files to see what's available
-          echo "Available files in MacOS directory:"
+          echo "Attempt 2: Try running with defaults write to enable CLI mode"
+          defaults write com.primatelabs.geekbench6 RunInCommandLineMode -bool YES
+          ./Geekbench\ 6 || echo "Failed with exit code $?"
+          
+          echo "Attempt 3: Check if there's a separate CLI binary in Resources"
+          cd "../Resources"
           ls -la
-          
-          # Check available command line options
-          echo "Checking Geekbench command line options..."
-          ./Geekbench\ 6 --help || echo "Help command not supported"
-          
-          # Run Geekbench with timeout protection
-          echo "Starting Geekbench benchmark..."
-          timeout 900 ./Geekbench\ 6 --verbose || timeout 900 ./Geekbench\ 6
-          
-          # Check for running processes
-          ps aux | grep -i geekbench
+          # Try to run any executable that might be there
+          for file in $(find . -type f -perm +111); do
+            echo "Trying to run $file"
+            $file || echo "Failed with exit code $?"
+          done
       
       - name: Display results location
         run: |
