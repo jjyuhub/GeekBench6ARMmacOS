@@ -1,0 +1,63 @@
+name: Geekbench 6 Test on macOS ARM
+
+on:
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  run-geekbench:
+    name: Run Geekbench 6 on macOS ARM
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Verify ARM architecture
+        run: |
+          echo "Checking if this is an ARM runner..."
+          ARCH=$(uname -m)
+          echo "Architecture: $ARCH"
+          
+          if [[ "$ARCH" == "arm64" ]]; then
+            echo "✅ Confirmed: This is an ARM runner."
+          else
+            echo "❌ This is not an ARM runner. Found architecture: $ARCH"
+            echo "The macos-latest runner might not be ARM-based. Try 'macos-14' for Apple Silicon."
+            exit 1
+          fi
+          
+          echo "CPU information:"
+          sysctl -n machdep.cpu.brand_string
+      
+      - name: Download and install Geekbench 6
+        run: |
+          echo "Downloading Geekbench 6..."
+          curl -L https://cdn.geekbench.com/Geekbench-6.2.0-Mac.zip -o geekbench.zip
+          unzip geekbench.zip
+          
+          echo "Geekbench 6 files:"
+          ls -la "Geekbench 6.app/Contents/MacOS/"
+      
+      - name: Run Geekbench 6
+        run: |
+          echo "Running Geekbench 6..."
+          cd "Geekbench 6.app/Contents/MacOS/"
+          
+          # Run Geekbench in CLI mode
+          ./geekbench_arm64 --no-upload
+      
+      - name: Display results location
+        run: |
+          echo "Geekbench results are stored in ~/Library/Application Support/Geekbench/Geekbench 6/"
+          ls -la ~/Library/Application\ Support/Geekbench/Geekbench\ 6/ || echo "Results directory not found"
+          
+          # Find the most recent result file
+          RESULT_FILE=$(find ~/Library/Application\ Support/Geekbench/Geekbench\ 6/ -name "*.gb6" -type f -exec ls -t {} \; | head -n 1)
+          
+          if [ -n "$RESULT_FILE" ]; then
+            echo "Most recent result file: $RESULT_FILE"
+            # Display some basic information from the result file
+            cat "$RESULT_FILE" || echo "Cannot display result file contents"
+          else
+            echo "No result files found"
+          fi
