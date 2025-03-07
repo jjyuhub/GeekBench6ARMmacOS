@@ -47,8 +47,16 @@ jobs:
           echo "Available files in MacOS directory:"
           ls -la
           
-          # Run Geekbench in CLI mode
-          ./Geekbench\ 6 --no-upload
+          # Check available command line options
+          echo "Checking Geekbench command line options..."
+          ./Geekbench\ 6 --help || echo "Help command not supported"
+          
+          # Run Geekbench with timeout protection
+          echo "Starting Geekbench benchmark..."
+          timeout 900 ./Geekbench\ 6 --verbose || timeout 900 ./Geekbench\ 6
+          
+          # Check for running processes
+          ps aux | grep -i geekbench
       
       - name: Display results location
         run: |
